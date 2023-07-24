@@ -1,0 +1,10 @@
+# ignore files
+*.swp
+*.o
+*.a
+*.so
+*.dll
+
+# ignore directory
+.cache/
+build/
