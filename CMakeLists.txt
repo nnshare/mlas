@@ -14,6 +14,21 @@ endif()
 
 project(MLAS LANGUAGES CXX ASM)
 
+# set mlas multi-thread library
+set(MLAS_RUNTIME_THREAD "seq" CACHE STRING
+    "specifies the threading runtime for mlas")
+  if(NOT "${MLAS_RUNTIME_THREAD}" MATCHES "^(seq|openmp|onnxThreadPool|)$")
+    message(FATAL_ERROR "Unsupported threading runtime: ${MLAS_RUNTIME_THREAD}")
+endif()
+
+option(MLAS_BUILD_SAMPLE "mals build samples" OFF)
+
+
+if (MLAS_RUNTIME_THREAD STREQUAL "openmp")
+  find_package(OpenMP REQUIRED)
+endif()
+
+
 if (NOT CMAKE_BUILD_TYPE)
   message(STATUS "Build type not set - using Release")
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose build type: Debug Release RelWithDebInfo MinSizeRel." FORCE)
@@ -29,7 +44,7 @@ set(MLAS_SRC_DIR  ${MLAS_SRC_ROOT}/lib)
 
 # options for onnxruntime
 set(onnxruntime_BUILD_WEBASSEMBLY OFF)
-set(onnxruntime_BUILD_SHARED_LIB ON)
+set(onnxruntime_BUILD_SHARED_LIB OFF)
 set(onnxruntime_ENABLE_STATIC_ANALYSIS OFF)
 
 # TODO(weihuali): set platform as common make module
@@ -649,8 +664,21 @@ endforeach()
 
 set_target_properties(onnxruntime_mlas PROPERTIES FOLDER "ONNXRuntime")
 
-# Do not use onnxruntime threadpool!
-target_compile_definitions(onnxruntime_mlas PRIVATE BUILD_MLAS_NO_ONNXRUNTIME)
+
+# Set runtime thread library!
+if (MLAS_RUNTIME_THREAD STREQUAL "seq")
+  target_compile_definitions(onnxruntime_mlas PRIVATE BUILD_MLAS_NO_ONNXRUNTIME)
+
+elseif (MLAS_RUNTIME_THREAD STREQUAL "openmp")
+  target_compile_definitions(onnxruntime_mlas PRIVATE BUILD_MLAS_NO_ONNXRUNTIME BUILD_MLAS_WITH_OPENMP)
+  target_link_libraries(onnxruntime_mlas PUBLIC OpenMP::OpenMP_CXX)
+
+elseif (MLAS_RUNTIME_THREAD STREQUAL "onnxThreadPool")
+  # Currently not suport!
+  message(FATAL_ERROR "MLAS does not support onnxruntime thread pool currently!")
+
+endif()
+
 
 if (WIN32)
   target_compile_options(onnxruntime_mlas PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:/wd6385>" "$<$<COMPILE_LANGUAGE:CXX>:/wd4127>")
@@ -661,6 +689,11 @@ endif()
 
 # export
 target_include_directories(onnxruntime_mlas PUBLIC ${MLAS_INC_DIR})
+
+if (MLAS_BUILD_SAMPLE)
+  add_executable(sgemm sample/sgemm.cc)
+  target_link_libraries(sgemm PRIVATE onnxruntime_mlas)
+endif()
 
 if (NOT onnxruntime_BUILD_SHARED_LIB)
     install(TARGETS onnxruntime_mlas

@@ -153,6 +153,11 @@ using MLAS_CPUIDINFO = onnxruntime::CPUIDInfo;
 
 #else  // BUILD_MLAS_NO_ONNXRUNTIME
 
+// Added to support openmp
+#if defined(BUILD_MLAS_WITH_OPENMP)
+#include <omp.h>
+#endif
+
 class MLASCPUIDInfo
 {
    public:
@@ -1036,7 +1041,12 @@ MlasGetMaximumThreadCount(
 {
 #if defined(BUILD_MLAS_NO_ONNXRUNTIME)
     MLAS_UNREFERENCED_PARAMETER(ThreadPool);
+
+#if defined(BUILD_MLAS_WITH_OPENMP)
+    return ptrdiff_t(omp_get_max_threads());
+#else
     return 1;
+#endif // openmp
 #else
     return onnxruntime::concurrency::ThreadPool::DegreeOfParallelism(ThreadPool);
 #endif

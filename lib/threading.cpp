@@ -43,6 +43,7 @@ MlasExecuteThreaded(
     //
     // Execute the routine for the specified number of iterations.
     //
+    #pragma omp parallel for schedule(dynamic)
     for (ptrdiff_t tid = 0; tid < Iterations; tid++) {
         ThreadedRoutine(Context, tid);
     }
@@ -82,6 +83,7 @@ MlasTrySimpleParallel(
     //
     // Execute the routine for the specified number of iterations.
     //
+    #pragma omp parallel for schedule(dynamic)
     for (ptrdiff_t tid = 0; tid < Iterations; tid++) {
         Work(tid);
     }
